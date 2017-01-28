@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="./node_modules/bootstrap/dist/css/bootstrap.min.css"></link>
+<link rel="stylesheet" type="text/css" href="./node_modules/bootstrap/dist/css/bootstrap-theme.min.css"></link>
+<script src="./node_modules/jquery/dist/jquery.min.js"></script>
+<script src="./node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+<script src="./node_modules/handlebars/dist/handlebars.min.js"></script>
+<script id="template" type="text/x-handlebars-template">
+	<table class="table table-hover table-bordered">
+		<thead>
+			<tr class="success">
+				<td>#</td>
+				<td>城市名稱</td>
+				<td>國家名稱</td>
+				<td>區域</td>
+				<td>人口</td>
+			</tr>
+		</thead>
+		<tbody>
+			{{#each this}}
+				<tr {{ifOdd @index}}>
+					<td>{{ID}}</td>
+					<td><input type="text" value="{{Name}}"></td>
+					<td><input type="text" value="{{CountryCode}}"></td>
+					<td><input type="text" value="{{District}}"></td>
+					<td><input type="text" value="{{Population}}"></td>
+				</tr>
+			{{/each}}
+		</tbody>
+	</table>
+</script>
+<script type="text/javascript">
+Handlebars.registerHelper({
+	ifStrEq: function(strA, strB) {
+		var result = strA.localeCompare(strB);
+		if (result == 0) return true;
+		else return false;
+	},
+	ifOdd: function(num) {
+		if (num%2 == 0) return "";
+		else return new Handlebars.SafeString("class='warning'");
+	}
+});
+var generateTable = Handlebars.compile($("#template").html());
+var targetUri = "http://localhost:8080/xa12/api/WorldInfo/Cities";
+$(function(){init(targetUri, {"countryCode" : "USA"});}); 
+init = function(uri, req) {
+	$.ajax({
+		url: uri,
+		data: req,
+		method: "GET",
+		success: function(feedback) {
+			$("#container").html(generateTable(feedback));
+		}
+	});
+}
+</script>
+</head>
+
+<body>
+<div class="container">
+	<div class="row">
+		
+	</div>
+	<div id="container"></div>
+</div>
+</body>
+</html>
