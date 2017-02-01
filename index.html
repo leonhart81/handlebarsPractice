@@ -2,69 +2,182 @@
 
 <html>
 <head>
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700">
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 <link rel="stylesheet" type="text/css" href="./node_modules/bootstrap/dist/css/bootstrap.min.css"></link>
-<link rel="stylesheet" type="text/css" href="./node_modules/bootstrap/dist/css/bootstrap-theme.min.css"></link>
+<link rel="stylesheet" type="text/css" href="./node_modules/bootstrap-material-design/dist/css/bootstrap-material-design.min.css"></link>
+<link rel="stylesheet" type="text/css" href="./node_modules/bootstrap-material-design/dist/css/ripples.min.css"></link>
 <script src="./node_modules/jquery/dist/jquery.min.js"></script>
 <script src="./node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+<script src="./node_modules/bootstrap-material-design/dist/js/material.min.js"></script>
+<script src="./node_modules/bootstrap-material-design/dist/js/ripples.min.js"></script>
 <script src="./node_modules/handlebars/dist/handlebars.min.js"></script>
-<script id="template" type="text/x-handlebars-template">
-	<table class="table table-hover table-bordered">
-		<thead>
-			<tr class="success">
-				<td>#</td>
-				<td>城市名稱</td>
-				<td>國家名稱</td>
-				<td>區域</td>
-				<td>人口</td>
-			</tr>
-		</thead>
-		<tbody>
-			{{#each this}}
-				<tr {{ifOdd @index}}>
-					<td>{{ID}}</td>
-					<td><input type="text" value="{{Name}}"></td>
-					<td><input type="text" value="{{CountryCode}}"></td>
-					<td><input type="text" value="{{District}}"></td>
-					<td><input type="text" value="{{Population}}"></td>
-				</tr>
-			{{/each}}
-		</tbody>
-	</table>
-</script>
+<style type="text/css">
+input.form-control{
+	padding: 0px !important;
+	margin: 0px !important;
+}
+button.btn{
+	margin-top: 0px !important;
+	margin-bottom: 0px !important;
+}
+div.form-group{
+	margin-top: 0px !important;
+}
+</style>
 <script type="text/javascript">
+var generateTemplate = function() {
+	return "<table class='table table-hover table-striped table-bordered'>"
+		+      "<thead>"
+		+          "<tr class='success'>"
+		+              "<td>#</td>"
+		+              "<td>城市名稱<button class='btn btn-link btn-xs pull-right' onclick='sortBy(\"cityName\",{{status}});'><span class='glyphicon glyphicon-triangle-bottom'></span></button></td>"
+		+              "<td>國家名稱<button class='btn btn-link btn-xs pull-right' onclick='sortBy(\"countryCode\",{{status}});'><span class='glyphicon glyphicon-triangle-bottom'></span></button></td>"
+		+              "<td>區域<button class='btn btn-link btn-xs pull-right' onclick='sortBy(\"district\",{{status}});'><span class='glyphicon glyphicon-triangle-bottom'></span></button></td>"
+		+              "<td>人口<button class='btn btn-link btn-xs pull-right' onclick='sortBy(\"cityPopulation\",{{status}});'><span class='glyphicon glyphicon-triangle-bottom'></span></button></td>"
+		+		   "</tr>"
+		+      "</thead>"
+		+      "<tbody>"
+		+          "{{#each this.data}}"
+		+              "<tr {{ifOdd @index}}>"
+		+                  "<td>{{inc @index 1}}</td>"
+		+                  "<td><input class='form-control' type='text' value='{{cityName}}'></td>"
+		+				   "<td><input class='form-control' type='text' value='{{countryCode}}'></td>"
+		+				   "<td><input class='form-control' type='text' value='{{district}}'></td>"
+		+				   "<td><input class='form-control' type='text' value='{{cityPopulation}}'></td>"
+		+			   "</tr>"
+		+		   "{{/each}}"
+		+	   "</tbody>"
+		+  "</table>";
+}
+
 Handlebars.registerHelper({
 	ifStrEq: function(strA, strB) {
 		var result = strA.localeCompare(strB);
 		if (result == 0) return true;
 		else return false;
 	},
+	ifEq: function(ctxA, ctxB) {
+		if (ctxA == ctxB) return true;
+		else return false;
+	},
+	ifCondThenShow: function(cond, ctxA, ctxB) {
+		if (cond) return ctxA;
+		else return ctxB;
+	},
 	ifOdd: function(num) {
 		if (num%2 == 0) return "";
 		else return new Handlebars.SafeString("class='warning'");
+	},
+	json: function(ctx) {
+		return JSON.stringify(ctx);
+	},
+	inc: function(num, amt) {
+		return parseInt(num) + parseInt(amt);
 	}
 });
-var generateTable = Handlebars.compile($("#template").html());
-var targetUri = "http://localhost:8080/xa12/api/WorldInfo/Cities";
-$(function(){init(targetUri, {"countryCode" : "USA"});}); 
-init = function(uri, req) {
-	$.ajax({
-		url: uri,
-		data: req,
-		method: "GET",
-		success: function(feedback) {
-			$("#container").html(generateTable(feedback));
-		}
+var generateTable = Handlebars.compile(generateTemplate());
+var citiesUri = "http://localhost:8080/xa12/api/WorldInfo/Cities";
+var allCitiesUri = "http://localhost:8080/xa12/api/WorldInfo/AllCities";
+var citiesData;
+$(function() {
+	$.material.init();
+	screenResize();
+	$(window).resize(screenResize);
+});
+
+var getCitiesOf = function(countryCode) {
+	$.getJSON(citiesUri, {"countryCode":countryCode}, 
+		function(feedback) {
+			citiesData = {
+							"data": feedback,
+							"sortCol": "#",
+							"status": 0
+						};
+			drawTheTable(citiesData);
 	});
+}
+
+var getAllCities = function() {
+	$.getJSON(allCitiesUri, function(feedback) {
+		citiesData = {
+						"data": feedback,
+						"sortCol": "#",
+						"status": 0
+					 };
+		drawTheTable(citiesData);
+	});
+}
+
+var drawTheTable = function(data) {
+	$("#tableContainer").html(generateTable(data));
+	$.material.init();
+}
+
+var getCities = function() {
+	var countryCode = $("#countryCode").val().trim();
+	if ("" != countryCode) {
+		getCitiesOf(countryCode);
+	} else {
+		getAllCities();
+	}
+}
+
+var clearTable = function() {
+	$("#tableContainer").html("");
+}
+
+var sortBy = function(sortCol, status) {
+	var dataClone = citiesData.data.slice().sort(
+		function(a, b) {
+			var x = a[sortCol]; 
+			var y = b[sortCol];
+			if (typeof x == "string" && typeof y == "string") {
+				return x.localeCompare(y);
+			} else {
+				return x-y;
+			}
+		});
+	citiesData = {
+					 "data" : dataClone,
+					 "sortCol" : sortCol,
+					 "status"  : ((status == 0) ? 1 : 0)
+				 };
+	drawTheTable(citiesData);
+}
+
+var screenResize = function() {
+	$("body").css("padding-top", $(".navbar-fixed-top").height());
 }
 </script>
 </head>
 
 <body>
-<div class="container">
+<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="#">探索世界</a>
+        </div>
+		<form class="navbar-form navbar-left">
+			<div class="form-group">
+				<input type="text" class="form-control" id="countryCode" placeholder="Search">
+			</div>
+			<button type="button" class="btn btn-raised btn-success" onclick="getCities();"><span class="glyphicon glyphicon-search"></span>查詢</button>
+			<button type="button" class="btn btn-raised btn-warning" onclick="clearTable();"><span class="glyphicon glyphicon-erase"></span>清除</button>
+		</form>
+    </div>
+</nav>
+<div class="container-fluid">
 	<div class="row">
-		
+		<div class="col-md-1"><ul class="pager"><li><a class="withripple" href="javascript:void(0)">上一頁</a></li></ul></div>
+		<div class="col-md-2 col-md-offset-4"></div>
+		<div class="col-md-1 col-md-offset-4"><ul class="pager"><li><a class="withripple" href="javascript:void(0)">下一頁</a></li></ul></div>
 	</div>
-	<div id="container"></div>
+	<div class="row">
+		<div class="col-md-12">
+			<div id="tableContainer" class="table-responsive"></div>
+		</div>
+	</div>
 </div>
 </body>
 </html>
